@@ -1,0 +1,19 @@
+{
+  "version": "5",
+  "specifiers": {
+    "npm:ejs@^6.0.1": "6.0.1"
+  },
+  "npm": {
+    "ejs@6.0.1": {
+      "integrity": "sha512-UaaM14yby8U3k02ihS1Bmj5Kz2d7CCQM1scxpgs4Mhkq8F1wR2gl3+Ts4h5Ne4Mnt7M9m4Dw7jsuMr3+xO4vZA==",
+      "bin": true
+    }
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:ejs@^6.0.1"
+      ]
+    }
+  }
+}
