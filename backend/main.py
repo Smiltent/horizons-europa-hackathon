@@ -109,7 +109,7 @@ def checkDataType(id_):
         return funcs[filtered]
 
 async def main():
-    async with serve(recieve, "100.65.0.67", 6767) as server:
+    async with serve(recieve, "127.0.0.1", 6767) as server:
         print("Serving on", server.sockets[0].getsockname())
         await server.serve_forever()
 
