@@ -6,6 +6,7 @@ import { ws } from "@/src/ws.ts"
 const router = Router()
 const fetchId = createIdGenerator("GRL")
 const createId = createIdGenerator("RC")
+const getDataId = createIdGenerator("RGD")
 
 type Project = {
     id: string
@@ -49,8 +50,24 @@ router.post("/:projectId/create", async (req: Request, res: Response) => {
     res.redirect("/projects")
 })
 
-router.get("/:id", async (_req: Request, _res: Response) => {
-    // TODO: single project view
+router.get("/:id", async (req: Request, res: Response) => {
+    const token = (req as unknown as { cookies: Cookies }).cookies?.token
+    const id_ = getDataId()
+
+    try {
+        const result = await ws.request<{ success: boolean; project?: Project }>(id_, JSON.stringify({
+            projectId: req.params.id,
+            token,
+        }))
+
+        if (!result.success || !result.project) {
+            return res.status(404).render("404")
+        }
+
+        res.render("projects/view", { proj: result.project })
+    } catch {
+        res.status(404).render("404")
+    }
 })
 
 export default router

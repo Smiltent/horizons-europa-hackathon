@@ -37,7 +37,7 @@ router.post("/login", async (req: Request, res: Response) => {
     }
 })
 
-router.post("/logout", async (req: Request, res: Response) => {
+async function performLogout(req: Request, res: Response) {
     const token = (req as unknown as { cookies: Record<string, string> }).cookies?.token
 
     if (token) {
@@ -51,6 +51,9 @@ router.post("/logout", async (req: Request, res: Response) => {
 
     res.clearCookie("token")
     res.redirect("/login")
-})
+}
+
+router.get("/logout", performLogout)
+router.post("/logout", performLogout)
 
 export default router

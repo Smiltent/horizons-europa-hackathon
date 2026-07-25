@@ -52,7 +52,12 @@ export default class FalseWS {
             case "RCM":
             case "RCMOK":
                 return { success: true }
-            case "RGD":
+            case "RGD": {
+                const project = FAKE_PROJECTS.find((p) => p.id === payload.projectId)
+                return project
+                    ? { success: true, project }
+                    : { success: false, error: "not_found" }
+            }
             case "RGDR":
                 return { success: true, data: null }
             default:
