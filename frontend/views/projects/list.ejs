@@ -7,44 +7,38 @@
             <% } %>
         </div>
         <div class="pink"></div>
-
-        <div class="pink"></div>
-        <div></div>
-        <div></div>
-        <div></div>
-        <div></div>
-
-        <div class="pink"></div>
-        <div class="pink"></div>
-        <div class="pink"></div>
-        <div class="pink"></div>
-        <div class="pink"></div>
-    </div>
-    
-
-    <% if (created.length > 0) { %>
+        <% if (created.length > 0) { %>
         <% created.forEach((proj) => { %>
-            <div>
-                <div>
-                    <div><%= proj.name %></div>
-                    <div><%= proj.isPublished %></div>
-                </div>
-                <div><%= proj.dateOfCreation %></div>
-            </div>
-        <% }) %>
-    <% } %>
+        <div class="pink"></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
 
-    <% if (nonCreated.length > 0) { %>
+        <div class="pink"></div>
+        <div class="pink"><%= proj.name %></div>
+        <div class="pink"><%= proj.isPublished %></div>
+        <div class="pink"><%= proj.dateOfCreation %></div>
+        <div class="pink"></div>
+            <% }) %>
+        <% } %>
+        <% if (nonCreated.length > 0) { %>
         <% nonCreated.forEach((proj) => { %>
-            <div>
-                <div>
-                    <div><%= proj.name %></div>
-                    <div>Not created</div>
-                </div>
-                <form method="POST" action="/projects/<%= proj.id %>/create">
-                    <button type="submit">Create</button>
-                </form>
-            </div>
-        <% }) %>
-    <% } %>
-</div>
+        <div class="pink"></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+
+        <div class="pink"></div>
+        <div class="pink"><%= proj.name %></div>
+        <div class="pink">Not created</div>
+        <div class="pink">
+            <form method="POST" action="/projects/<%= proj.id %>/create">
+                <button class="button"type="submit">Create</button>
+            </form>
+        </div>
+        <div class="pink"></div>
+            <% }) %>
+        <% } %>
+    </div>
