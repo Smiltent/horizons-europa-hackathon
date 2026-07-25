@@ -92,7 +92,8 @@ async def recieve(websocket):
             continue
         data.pop("id", None)
         result = await function(id_, **data)
-        await websocket.send(json.dumps(result))
+        if result is not None:
+            await websocket.send(json.dumps({**result, "id": id_}))
 
 def checkDataType(id):
     filtered = re.sub(r'\d', '', id)

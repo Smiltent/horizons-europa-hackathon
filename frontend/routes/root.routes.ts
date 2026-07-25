@@ -4,7 +4,6 @@ import { createIdGenerator } from "@/utils/id.ts"
 import { ws } from "@/src/ws.ts"
 
 const router = Router()
-
 const loginId = createIdGenerator("L")
 
 router.get("/", (_req: Request, res: Response) => {
@@ -18,10 +17,10 @@ router.get("/login", (_req: Request, res: Response) => {
 router.post("/login", async (req: Request, res: Response) => {
     const { username, password } = req.body as { username: string; password: string }
 
-    const id = loginId()
+    const id_ = loginId()
 
     try {
-        const result = await ws.request<{ success: boolean; token?: string }>(id, JSON.stringify({
+        const result = await ws.request<{ success: boolean; token?: string }>(id_, JSON.stringify({
             username,
             password,
         }))

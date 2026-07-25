@@ -4,7 +4,6 @@ import { createIdGenerator } from "@/utils/id.ts"
 import { ws } from "@/src/ws.ts"
 
 const router = Router()
-
 const fetchId = createIdGenerator("GRL")
 const createId = createIdGenerator("RC")
 
@@ -20,9 +19,10 @@ type Cookies = Record<string, string>
 
 router.get("/", async (req: Request, res: Response) => {
     const token = (req as unknown as { cookies: Cookies }).cookies?.token
+    const id_ = fetchId()
 
     try {
-        const result = await ws.request<{ projects: Project[] }>(fetchId(), JSON.stringify({
+        const result = await ws.request<{ projects: Project[] }>(id_, JSON.stringify({
             token,
         }))
 
@@ -37,13 +37,14 @@ router.get("/", async (req: Request, res: Response) => {
 
 router.post("/:projectId/create", async (req: Request, res: Response) => {
     const token = (req as unknown as { cookies: Cookies }).cookies?.token
+    const id_ = createId()
 
     try {
-        await ws.request(createId(), JSON.stringify({
+        await ws.request(id_, JSON.stringify({
             projectId: req.params.projectId,
             token,
         }))
-    } catch {}
+    } catch { /* redirect regardless */ }
 
     res.redirect("/projects")
 })
