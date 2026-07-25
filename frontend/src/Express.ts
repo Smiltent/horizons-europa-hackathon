@@ -17,8 +17,8 @@ export default class Express {
     }
 
     private async i() {
-        await this.middleware()
         await this.public()
+        await this.middleware()
         await this.routes()
         this.start()
     }
