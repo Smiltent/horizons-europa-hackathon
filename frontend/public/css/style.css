@@ -77,3 +77,21 @@ button:hover{
     border: none;
     font-size: 25px;
 }
+
+.number_box{
+    align-content: center;
+    place-self: center;
+    width: 100%;
+    height: 800px;
+}
+.num_grid{
+    place-self: center;
+    display: grid;
+    grid-template-columns: repeat(7, 140px);
+    grid-template-rows: repeat(5, 150px);
+}
+.letter_box> div{
+    background-color: azure;
+    align-content: center;
+    text-align: center;
+}
