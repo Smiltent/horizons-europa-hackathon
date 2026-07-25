@@ -1,29 +1,50 @@
-<% if (error) { %>
-    <p style="color:red"><%= error %></p>
-<% } %>
-
-<% if (created.length > 0) { %>
-    <% created.forEach((proj) => { %>
-        <div>
-            <div>
-                <div><%= proj.name %></div>
-                <div><%= proj.isPublished %></div>
-            </div>
-            <div><%= proj.dateOfCreation %></div>
+<div class="e_box">
+    <div class="inf_e_grid">
+        <div class="pink"></div>
+        <div class="error_box pink">
+            <% if (error) { %>
+                <p style="color:red"><%= error %></p>
+            <% } %>
         </div>
-    <% }) %>
-<% } %>
+        <div class="pink"></div>
 
-<% if (nonCreated.length > 0) { %>
-    <% nonCreated.forEach((proj) => { %>
-        <div>
+        <div class="pink"></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+
+        <div class="pink"></div>
+        <div class="pink"></div>
+        <div class="pink"></div>
+        <div class="pink"></div>
+        <div class="pink"></div>
+    </div>
+    
+
+    <% if (created.length > 0) { %>
+        <% created.forEach((proj) => { %>
             <div>
-                <div><%= proj.name %></div>
-                <div>Not created</div>
+                <div>
+                    <div><%= proj.name %></div>
+                    <div><%= proj.isPublished %></div>
+                </div>
+                <div><%= proj.dateOfCreation %></div>
             </div>
-            <form method="POST" action="/projects/<%= proj.id %>/create">
-                <button type="submit">Create</button>
-            </form>
-        </div>
-    <% }) %>
-<% } %>
+        <% }) %>
+    <% } %>
+
+    <% if (nonCreated.length > 0) { %>
+        <% nonCreated.forEach((proj) => { %>
+            <div>
+                <div>
+                    <div><%= proj.name %></div>
+                    <div>Not created</div>
+                </div>
+                <form method="POST" action="/projects/<%= proj.id %>/create">
+                    <button type="submit">Create</button>
+                </form>
+            </div>
+        <% }) %>
+    <% } %>
+</div>
