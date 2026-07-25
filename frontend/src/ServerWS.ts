@@ -37,6 +37,11 @@ export default class ServerWS {
                 return
             }
 
+            if (parsed?.error) {
+                console.error("[WS] Server error:", parsed.error)
+                return
+            }
+
             for (const handler of this.handlers) handler(event.data)
         }
 

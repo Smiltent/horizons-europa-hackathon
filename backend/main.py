@@ -87,8 +87,12 @@ async def recieve(websocket):
     async for message in websocket:
         data = json.loads(message)
         id_ = data.get("id")
+        if not id_ or not isinstance(id_, str):
+            await websocket.send(json.dumps({"error": "Missing or invalid id_ in message"}))
+            continue
         function = checkDataType(id_)
         if not function:
+            await websocket.send(json.dumps({"error": f"Unknown message type for id_: {id_}", "id": id_}))
             continue
         data.pop("id", None)
         result = await function(id_, **data)
