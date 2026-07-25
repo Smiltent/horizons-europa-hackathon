@@ -12,6 +12,8 @@ type Project = {
 const FAKE_PROJECTS: Project[] = [
     { id: "100000001", name: "Design Mode Project A", created: true, isPublished: true, dateOfCreation: "2026-06-01" },
     { id: "100000002", name: "Design Mode Project B", created: true, isPublished: false, dateOfCreation: "2026-06-15" },
+    { id: "100000004", name: "Design Mode Project c", created: true, isPublished: false, dateOfCreation: "2026-06-15" },
+    { id: "100000005", name: "Design Mode Project d", created: true, isPublished: false, dateOfCreation: "2026-06-15" },
     { id: "100000003", name: "Unlinked Scratch Project", created: false },
 ]
 
