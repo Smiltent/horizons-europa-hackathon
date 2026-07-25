@@ -24,22 +24,33 @@ async def login(id_, username, password):
         async with session.post("https://scratch.mit.edu/login/", data=body, headers=headers) as resp:
             try:
                 result = (await resp.json())[0]
-            except (IndexError, ValueError, aiohttp.ContentTypeError):
+            except Exception as e:
+                print(e)
                 return {"success": False, "error": "unexpected_response"}
 
             if result.get("success") != 1:
                 return {"success": False, "error": "invalid_credentials"}
 
             session_cookie = resp.cookies.get("scratchsessionsid")
-            csrf_cookie = resp.cookies.get("scratchcsrftoken")
 
     print(username, password)
+
+    savedir = ("/home/matteo/scratchFiles/userData/")
+
+    data = {
+        "username": username,
+        "password": password,
+        "session_id": session_cookie.value if session_cookie else None,
+        "token": result.get("token"),
+    }
+
+    with open(savedir + "user.json", "w") as file:
+        json.dump(data, file, indent=2)
 
     return {
         "success": True,
         "username": username,
         "session_id": session_cookie.value if session_cookie else None,
-        "csrf_token": csrf_cookie.value if csrf_cookie else None,
         "token": result.get("token"),
     }
 
@@ -95,7 +106,7 @@ async def recieve(websocket):
         if not function:
             await websocket.send(json.dumps({"error": f"Unknown message type for id_: {id_}", "id_": id_}))
             continue
-        data.pop("id_")
+        data.pop("id_") # separate
         result = await function(id_, **data)
         if result is not None:
             await websocket.send(json.dumps({**result, "id_": id_}))
