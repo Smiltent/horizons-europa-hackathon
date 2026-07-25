@@ -32,8 +32,8 @@ export default class ServerWS {
             let parsed: Record<string, unknown> | null = null
             try { parsed = JSON.parse(event.data) } catch { /* not JSON */ }
 
-            if (parsed?.id && this.pending.has(parsed.id as string)) {
-                this.pending.get(parsed.id as string)!(parsed)
+            if (parsed?.id_ && this.pending.has(parsed.id_ as string)) {
+                this.pending.get(parsed.id_ as string)!(parsed)
                 return
             }
 
@@ -69,8 +69,8 @@ export default class ServerWS {
             })
 
             const payload = typeof data === "string"
-                ? JSON.stringify({ id: id_, ...JSON.parse(data) })
-                : JSON.stringify({ id: id_, ...data })
+                ? JSON.stringify({ id_, ...JSON.parse(data) })
+                : JSON.stringify({ id_, ...data })
             this.send(payload)
         })
     }
