@@ -6,13 +6,16 @@ import os
 import shutil
 from datetime import datetime, timezone
 import aiohttp
+from yarl import URL
 from websockets.asyncio.server import serve
 
-BASE_DIR = "/home/matteo/scratchFiles/"
+BASE_DIR = "./scratchFiles/"
 USER_DATA_DIR = BASE_DIR + "userData/"
 REPOS_DIR = BASE_DIR + "repos/"
+COOKIES_DIR = BASE_DIR + "cookies/"
 SESSIONS_FILE = BASE_DIR + "sessions.json"
-REPOS_DB_FILE = BASE_DIR + "repos.json"
+
+SCRATCH_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
 
 _db_lock = asyncio.Lock()
 
@@ -46,32 +49,64 @@ async def get_session(token):
         return sessions.get(token)
 
 
-async def get_username(token):
-    session = await get_session(token)
-    return session["username"] if session else None
-
-
-async def get_repos_db():
-    async with _db_lock:
-        return _read_json(REPOS_DB_FILE, {})
-
-
-async def set_user_repo(username, project_id, entry):
-    async with _db_lock:
-        db = _read_json(REPOS_DB_FILE, {})
-        db.setdefault(username, {})[str(project_id)] = entry
-        _write_json(REPOS_DB_FILE, db)
-
-
-async def remove_user_repo(username, project_id):
-    async with _db_lock:
-        db = _read_json(REPOS_DB_FILE, {})
-        db.get(username, {}).pop(str(project_id), None)
-        _write_json(REPOS_DB_FILE, db)
-
-
 def repo_dir(username, project_id):
     return os.path.join(REPOS_DIR, username, str(project_id))
+
+
+def repo_meta_path(username, project_id):
+    return os.path.join(repo_dir(username, project_id), "meta.json")
+
+
+def read_repo_meta(username, project_id):
+    return _read_json(repo_meta_path(username, project_id), {})
+
+
+def write_repo_meta(username, project_id, meta):
+    _write_json(repo_meta_path(username, project_id), meta)
+
+
+def list_user_repos(username):
+    user_dir = os.path.join(REPOS_DIR, username)
+    if not os.path.isdir(user_dir):
+        return []
+    return [d for d in os.listdir(user_dir) if os.path.isdir(os.path.join(user_dir, d))]
+
+
+def cookie_jar_path(username):
+    return os.path.join(COOKIES_DIR, f"{username}.pickle")
+
+
+def load_cookie_jar(username):
+    jar = aiohttp.CookieJar()
+    path = cookie_jar_path(username)
+    if os.path.exists(path):
+        jar.load(path)
+    return jar
+
+
+def save_cookie_jar(jar, username):
+    os.makedirs(COOKIES_DIR, exist_ok=True)
+    jar.save(cookie_jar_path(username))
+
+
+def jar_cookie(jar, name):
+    cookies = jar.filter_cookies(URL("https://scratch.mit.edu"))
+    morsel = cookies.get(name)
+    return morsel.value if morsel else None
+
+
+def scratch_session(username):
+    """An aiohttp session that carries the user's persisted Scratch cookies (csrf token, login session)."""
+    return aiohttp.ClientSession(cookie_jar=load_cookie_jar(username))
+
+
+async def ensure_csrf_token(session):
+    token = jar_cookie(session.cookie_jar, "scratchcsrftoken")
+    if token:
+        return token
+    async with session.get("https://scratch.mit.edu/csrf_token/", headers={"user-agent": SCRATCH_UA}) as resp:
+        await resp.read()
+    return jar_cookie(session.cookie_jar, "scratchcsrftoken") or "a"
 
 
 async def run_git(*args, cwd):
@@ -86,56 +121,74 @@ async def run_git(*args, cwd):
     return stdout.decode()
 
 
-async def fetch_scratch_project_info(username, session_id, project_id):
+async def fetch_scratch_project_info(username, project_id):
     """Best-effort lookup of a project's own metadata (title, isPublished, dateOfCreation)."""
-    headers = {
-        "x-csrftoken": "a",
-        "x-requested-with": "XMLHttpRequest",
-        "Cookie": f"scratchsessionsid={session_id};scratchcsrftoken=a;scratchlanguage=en;",
-        "referer": "https://scratch.mit.edu",
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
-    }
-    async with aiohttp.ClientSession() as session:
+    async with scratch_session(username) as session:
+        headers = {
+            "x-csrftoken": await ensure_csrf_token(session),
+            "x-requested-with": "XMLHttpRequest",
+            "referer": "https://scratch.mit.edu",
+            "user-agent": SCRATCH_UA,
+        }
         async with session.get(f"https://api.scratch.mit.edu/users/{username}/projects/{project_id}", headers=headers) as resp:
             if resp.status != 200:
+                print(f"[fetch_scratch_project_info] {project_id} -> {resp.status}: {(await resp.text())[:300]}")
                 return None
             data = await resp.json()
             return {
                 "id": str(project_id),
                 "name": data.get("title", f"Project {project_id}"),
-                "isPublished": bool(data.get("public", data.get("isPublished", False))),
+                "isPublished": bool(data.get("public", data.get("is_published", False))),
                 "dateOfCreation": data.get("history", {}).get("created"),
                 "project_token": data.get("project_token"),
             }
 
 
-async def fetch_scratch_project_list(username, session_id):
-    """Best-effort listing of every project owned by the user (published or not)."""
-    headers = {
-        "x-csrftoken": "a",
-        "x-requested-with": "XMLHttpRequest",
-        "Cookie": f"scratchsessionsid={session_id};scratchcsrftoken=a;scratchlanguage=en;",
-        "referer": "https://scratch.mit.edu",
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
-    }
-    projects = []
-    async with aiohttp.ClientSession() as session:
+async def fetch_scratch_project_list(username):
+    """Every project owned by the user, including unshared drafts, falling back to public-only if the private listing is unavailable."""
+    async with scratch_session(username) as session:
+        headers = {
+            "x-csrftoken": await ensure_csrf_token(session),
+            "x-requested-with": "XMLHttpRequest",
+            "referer": "https://scratch.mit.edu",
+            "user-agent": SCRATCH_UA,
+        }
+        projects = []
         async with session.get("https://scratch.mit.edu/site-api/projects/all/1/", headers=headers) as resp:
             if resp.status != 200:
-                return projects
+                print(f"[fetch_scratch_project_list] private listing -> {resp.status}: {(await resp.text())[:300]}")
+            else:
+                raw = await resp.json()
+                for entry in raw:
+                    fields = entry.get("fields", entry)
+                    pk = entry.get("pk", fields.get("id"))
+                    if pk is None:
+                        continue
+                    projects.append({
+                        "id": str(pk),
+                        "name": fields.get("title", f"Project {pk}"),
+                        "isPublished": bool(fields.get("isPublished", fields.get("shared", False))),
+                        "dateOfCreation": fields.get("datetime_created") or fields.get("created"),
+                    })
+        save_cookie_jar(session.cookie_jar, username)
+
+    if projects:
+        return projects
+
+    # Private listing unavailable (auth or endpoint change) — fall back to the public API,
+    # which only ever shows shared/published projects.
+    async with aiohttp.ClientSession() as session:
+        async with session.get(f"https://api.scratch.mit.edu/users/{username}/projects/") as resp:
+            if resp.status != 200:
+                print(f"[fetch_scratch_project_list] public fallback -> {resp.status}: {(await resp.text())[:300]}")
+                return []
             raw = await resp.json()
-            for entry in raw:
-                fields = entry.get("fields", entry)
-                pk = entry.get("pk", fields.get("id"))
-                if pk is None:
-                    continue
-                projects.append({
-                    "id": str(pk),
-                    "name": fields.get("title", f"Project {pk}"),
-                    "isPublished": bool(fields.get("isPublished", False)),
-                    "dateOfCreation": fields.get("datetime_created"),
-                })
-    return projects
+            return [{
+                "id": str(p["id"]),
+                "name": p.get("title", f"Project {p['id']}"),
+                "isPublished": True,
+                "dateOfCreation": p.get("history", {}).get("created"),
+            } for p in raw]
 
 
 async def fetch_scratch_project_data(project_id, project_token=None):
@@ -150,21 +203,20 @@ async def fetch_scratch_project_data(project_id, project_token=None):
 
 
 async def login(id_, username, password):
-    headers = {
-        "x-csrftoken": "a",
-        "x-requested-with": "XMLHttpRequest",
-        "Cookie": "scratchcsrftoken=a;scratchlanguage=en;",
-        "referer": "https://scratch.mit.edu",
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
-        "Content-Type": "application/json",
-    }
-    body = json.dumps({
-        "username": username,
-        "password": password,
-        "useMessages": True,
-    })
+    async with scratch_session(username) as session:
+        headers = {
+            "x-csrftoken": await ensure_csrf_token(session),
+            "x-requested-with": "XMLHttpRequest",
+            "referer": "https://scratch.mit.edu",
+            "user-agent": SCRATCH_UA,
+            "Content-Type": "application/json",
+        }
+        body = json.dumps({
+            "username": username,
+            "password": password,
+            "useMessages": True,
+        })
 
-    async with aiohttp.ClientSession() as session:
         async with session.post("https://scratch.mit.edu/login/", data=body, headers=headers) as resp:
             try:
                 result = (await resp.json())[0]
@@ -176,6 +228,8 @@ async def login(id_, username, password):
                 return {"success": False, "error": "invalid_credentials"}
 
             session_cookie = resp.cookies.get("scratchsessionsid")
+
+        save_cookie_jar(session.cookie_jar, username)
 
     session_id = session_cookie.value if session_cookie else None
     token = result.get("token")
@@ -215,7 +269,7 @@ async def repoCreate(id_, token=None, projectId=None, **kwargs):
         return {"success": True, "projectId": projectId}
 
     try:
-        info = await fetch_scratch_project_info(username, session["session_id"], projectId)
+        info = await fetch_scratch_project_info(username, projectId)
         project_data = await fetch_scratch_project_data(projectId, info.get("project_token") if info else None)
     except Exception as e:
         print(e)
@@ -229,12 +283,11 @@ async def repoCreate(id_, token=None, projectId=None, **kwargs):
     await run_git("add", "project.json", cwd=path)
     await run_git("-c", "user.name=MVC", "-c", "user.email=mvc@local", "commit", "-m", "Initial version", cwd=path)
 
-    entry = {
+    write_repo_meta(username, projectId, {
         "name": (info or {}).get("name", f"Project {projectId}"),
         "isPublished": (info or {}).get("isPublished", False),
         "dateOfCreation": (info or {}).get("dateOfCreation") or datetime.now(timezone.utc).isoformat(),
-    }
-    await set_user_repo(username, projectId, entry)
+    })
 
     return {"success": True, "projectId": projectId}
 
@@ -252,7 +305,6 @@ async def repoDelete(id_, token=None, projectId=None, **kwargs):
     path = repo_dir(username, projectId)
 
     shutil.rmtree(path, ignore_errors=True)
-    await remove_user_repo(username, projectId)
 
     return {"success": True}
 
@@ -272,7 +324,7 @@ async def repoCommit(id_, token=None, projectId=None, **kwargs):
         return {"success": False, "error": "not_found"}
 
     try:
-        info = await fetch_scratch_project_info(username, session["session_id"], projectId)
+        info = await fetch_scratch_project_info(username, projectId)
         project_data = await fetch_scratch_project_data(projectId, info.get("project_token") if info else None)
     except Exception as e:
         print(e)
@@ -282,7 +334,7 @@ async def repoCommit(id_, token=None, projectId=None, **kwargs):
         json.dump(project_data, f, indent=2)
 
     await run_git("add", "project.json", cwd=path)
-    status = await run_git("status", "--porcelain", cwd=path)
+    status = await run_git("status", "--porcelain", "--", "project.json", cwd=path)
     if not status.strip():
         return {"success": True, "projectId": projectId, "changed": False}
 
@@ -291,7 +343,7 @@ async def repoCommit(id_, token=None, projectId=None, **kwargs):
     commit_hash = (await run_git("rev-parse", "HEAD", cwd=path)).strip()
 
     if info:
-        await set_user_repo(username, projectId, {
+        write_repo_meta(username, projectId, {
             "name": info.get("name", f"Project {projectId}"),
             "isPublished": info.get("isPublished", False),
             "dateOfCreation": info.get("dateOfCreation") or datetime.now(timezone.utc).isoformat(),
@@ -314,8 +366,7 @@ async def repoGetData(id_, token=None, projectId=None, **kwargs):
     if not os.path.isdir(path):
         return {"success": False, "error": "not_found"}
 
-    db = await get_repos_db()
-    entry = db.get(username, {}).get(str(projectId), {})
+    entry = read_repo_meta(username, projectId)
 
     log = await run_git("log", "--pretty=format:%H|%ad|%s", "--date=iso-strict", cwd=path)
     commits = []
@@ -342,11 +393,10 @@ async def getRepoList(id_, token=None, **kwargs):
         return {"success": False, "error": "unauthorized"}
 
     username = session["username"]
-    db = await get_repos_db()
-    created_ids = db.get(username, {})
+    tracked_ids = set(list_user_repos(username))
 
     try:
-        remote_projects = await fetch_scratch_project_list(username, session["session_id"])
+        remote_projects = await fetch_scratch_project_list(username)
     except Exception as e:
         print(e)
         remote_projects = []
@@ -355,19 +405,19 @@ async def getRepoList(id_, token=None, **kwargs):
     seen_ids = set()
     for proj in remote_projects:
         seen_ids.add(proj["id"])
-        tracked = created_ids.get(proj["id"])
+        is_created = proj["id"] in tracked_ids
+        tracked = read_repo_meta(username, proj["id"]) if is_created else {}
         projects.append({
             "id": proj["id"],
-            "name": tracked["name"] if tracked else proj["name"],
-            "created": proj["id"] in created_ids,
+            "name": tracked.get("name", proj["name"]),
+            "created": is_created,
             "isPublished": proj["isPublished"],
             "dateOfCreation": proj["dateOfCreation"],
         })
 
     # Include tracked repos even if they no longer show up in the remote listing.
-    for project_id, tracked in created_ids.items():
-        if project_id in seen_ids:
-            continue
+    for project_id in tracked_ids - seen_ids:
+        tracked = read_repo_meta(username, project_id)
         projects.append({
             "id": project_id,
             "name": tracked.get("name", f"Project {project_id}"),
@@ -422,7 +472,7 @@ async def main():
         await server.serve_forever()
 
 def decoder(text):
-    directory = '/home/matteo/scratchFiles/'
+    directory = './scratchFiles/'
     with open(directory + text,"r") as f:
         b64_content = f.read().strip()
 

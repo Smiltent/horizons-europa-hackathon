@@ -8,10 +8,6 @@ const loginId = createIdGenerator("L")
 const logoutId = createIdGenerator("LO")
 
 router.get("/", (_req: Request, res: Response) => {
-    res.render("lander")
-})
-
-router.get("/login", (_req: Request, res: Response) => {
     res.render("login", { error: null })
 })
 
