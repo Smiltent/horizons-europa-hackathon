@@ -44,7 +44,7 @@ router.post("/:projectId/create", async (req: Request, res: Response) => {
             projectId: req.params.projectId,
             token,
         }))
-    } catch { /* redirect regardless */ }
+    } catch { }
 
     res.redirect("/projects")
 })

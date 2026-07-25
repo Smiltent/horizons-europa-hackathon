@@ -5,6 +5,7 @@ import { ws } from "@/src/ws.ts"
 
 const router = Router()
 const loginId = createIdGenerator("L")
+const logoutId = createIdGenerator("LO")
 
 router.get("/", (_req: Request, res: Response) => {
     res.render("lander")
@@ -34,6 +35,22 @@ router.post("/login", async (req: Request, res: Response) => {
     } catch {
         res.render("login", { error: "Could not reach auth server" })
     }
+})
+
+router.post("/logout", async (req: Request, res: Response) => {
+    const token = (req as unknown as { cookies: Record<string, string> }).cookies?.token
+
+    if (token) {
+        const id_ = logoutId()
+        try {
+            await ws.request(id_, JSON.stringify({ token }))
+        } catch (err) {
+            console.debug("[logout] WS request failed:", err)
+        }
+    }
+
+    res.clearCookie("token")
+    res.redirect("/login")
 })
 
 export default router
