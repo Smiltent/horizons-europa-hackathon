@@ -32,8 +32,13 @@ export default class ServerWS {
             let parsed: Record<string, unknown> | null = null
             try { parsed = JSON.parse(event.data) } catch { /* not JSON */ }
 
-            if (parsed?.id && this.pending.has(parsed.id as string)) {
-                this.pending.get(parsed.id as string)!(parsed)
+            if (parsed?.id_ && this.pending.has(parsed.id_ as string)) {
+                this.pending.get(parsed.id_ as string)!(parsed)
+                return
+            }
+
+            if (parsed?.error) {
+                console.error("[WS] Server error:", parsed.error)
                 return
             }
 
@@ -50,18 +55,23 @@ export default class ServerWS {
         }
     }
 
-    request<T>(id: string, data: Record<string, unknown>, timeout = 5000): Promise<T> {
+    request<T>(id_: string, data: string | Record<string, unknown>, timeout = 5000): Promise<T> {
         return new Promise((resolve, reject) => {
             const timer = setTimeout(() => {
-                this.pending.delete(id)
+                this.pending.delete(id_)
                 reject(new Error("WS request timed out"))
             }, timeout)
-            this.pending.set(id, (response) => {
+
+            this.pending.set(id_, (response) => {
                 clearTimeout(timer)
-                this.pending.delete(id)
+                this.pending.delete(id_)
                 resolve(response as T)
             })
-            this.send(JSON.stringify({ id, ...data }))
+
+            const payload = typeof data === "string"
+                ? JSON.stringify({ id_, ...JSON.parse(data) })
+                : JSON.stringify({ id_, ...data })
+            this.send(payload)
         })
     }
 
