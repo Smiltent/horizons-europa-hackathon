@@ -16,15 +16,15 @@ router.get("/login", (_req: Request, res: Response) => {
 })
 
 router.post("/login", async (req: Request, res: Response) => {
-    const { Username: username, password } = req.body as { Username: string; password: string }
+    const { username, password } = req.body as { username: string; password: string }
 
     const id = loginId()
 
     try {
-        const result = await ws.request<{ success: boolean; token?: string }>(id, {
+        const result = await ws.request<{ success: boolean; token?: string }>(id, JSON.stringify({
             username,
             password,
-        })
+        }))
 
         if (result.success && result.token) {
             res.cookie("token", result.token, { httpOnly: true, sameSite: "lax" })

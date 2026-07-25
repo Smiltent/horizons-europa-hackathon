@@ -50,18 +50,23 @@ export default class ServerWS {
         }
     }
 
-    request<T>(id: string, data: Record<string, unknown>, timeout = 5000): Promise<T> {
+    request<T>(id: string, data: string | Record<string, unknown>, timeout = 5000): Promise<T> {
         return new Promise((resolve, reject) => {
             const timer = setTimeout(() => {
                 this.pending.delete(id)
                 reject(new Error("WS request timed out"))
             }, timeout)
+
             this.pending.set(id, (response) => {
                 clearTimeout(timer)
                 this.pending.delete(id)
                 resolve(response as T)
             })
-            this.send(JSON.stringify({ id, ...data }))
+            
+            const payload = typeof data === "string"
+                ? JSON.stringify({ id, ...JSON.parse(data) })
+                : JSON.stringify({ id, ...data })
+            this.send(payload)
         })
     }
 
