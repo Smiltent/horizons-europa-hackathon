@@ -1,8 +1,27 @@
 <form method="POST" action="/login">
-    <% if (error) { %>
-        <p style="color:red"><%= error %></p>
-    <% } %>
-    <input type="text" name="Username" placeholder="Username" required>
-    <input type="password" name="password" placeholder="Password" required>
-    <button type="submit">Login</button>
+    <div class="flex_row">
+        <div class="flex_col">
+            <div>
+                <input type="text" name="Username" placeholder="Username" required>
+            </div>
+        </div>
+        <div class="flex_col">
+            <div>
+                
+            </div>
+            <div>
+                <% if (error) { %>
+                    <p style="color:red"><%= error %></p>
+                <% } %>
+            </div>
+            <div>
+                <button type="submit">Login</button>
+            </div>
+        </div>
+        <div class="flex_col">
+            <div>
+                <input type="password" name="password" placeholder="Password" required>
+            </div>
+        </div>
+    </div>    
 </form>
