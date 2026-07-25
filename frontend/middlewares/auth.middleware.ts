@@ -8,7 +8,7 @@ export default function authMiddleware(req: Request, res: Response, next: NextFu
 
     if (PUBLIC.some((p) => req.path.startsWith(p))) return next()
     if (!(req as unknown as { cookies: Record<string, string> }).cookies?.token) {
-        return res.redirect("/")
+        return res.redirect("/auth")
     }
     next()
 }
