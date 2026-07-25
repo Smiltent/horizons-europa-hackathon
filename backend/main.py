@@ -4,6 +4,7 @@ import asyncio
 import re
 import aiohttp
 from websockets.asyncio.server import serve
+import os
 
 async def login(id_, username, password):
     headers = {
@@ -31,11 +32,27 @@ async def login(id_, username, password):
             if result.get("success") != 1:
                 return {"success": False, "error": "invalid_credentials"}
 
-            session_cookie = resp.cookies.get("scratchsessionsid")
+            try:
+                session_cookie = resp.cookies.get("scratchsessionsid")
+            except Exception as e:
+                print(e)
 
-    print(username, password)
+    print(id_, username, password)
+    idList = "dataBase/ids.json"
 
-    savedir = ("/home/matteo/scratchFiles/userData/")
+    if os.path.exists(idList):
+        with open(idList, "r") as f:
+            data = json.load(f)
+    else:
+        data = {}
+
+    key = re.sub(r'\d', '', id_)
+    identif = re.sub(r'\D', '', id_)
+    data[key] = identif  # updates existing key or adds it if new
+
+    with open(idList, "w") as file:
+        json.dump(data, file, indent=2)
+    savedir = "dataBase/userData/"
 
     data = {
         "username": username,
@@ -44,7 +61,7 @@ async def login(id_, username, password):
         "token": result.get("token"),
     }
 
-    with open(savedir + "user.json", "w") as file:
+    with open(savedir + username +".json", "w") as file:
         json.dump(data, file, indent=2)
 
     return {
@@ -96,7 +113,16 @@ funcs = {
 
 async def recieve(websocket):
     async for message in websocket:
-        data = json.loads(message)
+        while True:
+            try:
+                data = json.loads(message)
+                print(message)
+                if data:
+                    break
+            except Exception as e:
+                e = str(e)
+                await websocket.send(e)
+
         id_ = data.get("id_")
         if not id_ or not isinstance(id_, str):
             print("Missing or invalid 'id_' in message:", data)
@@ -107,7 +133,15 @@ async def recieve(websocket):
             await websocket.send(json.dumps({"error": f"Unknown message type for id_: {id_}", "id_": id_}))
             continue
         data.pop("id_") # separate
-        result = await function(id_, **data)
+        while True:
+            try:
+                result = await function(id_, **data)
+                if result:
+                    break
+            except Exception as e:
+                e = str(e)
+                await websocket.send(e)
+
         if result is not None:
             await websocket.send(json.dumps({**result, "id_": id_}))
 
@@ -120,12 +154,12 @@ def checkDataType(id_):
         return funcs[filtered]
 
 async def main():
-    async with serve(recieve, "127.0.0.1", 6767) as server:
+    async with serve(recieve, "100.65.0.67", 6767) as server:
         print("Serving on", server.sockets[0].getsockname())
         await server.serve_forever()
 
 def decoder(text):
-    directory = '/home/matteo/scratchFiles/'
+    directory = 'dataBase/'
     with open(directory + text,"r") as f:
         b64_content = f.read().strip()
 
