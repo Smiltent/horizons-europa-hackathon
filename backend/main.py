@@ -86,7 +86,10 @@ funcs = {
 async def recieve(websocket):
     async for message in websocket:
         data = json.loads(message)
-        id_ = data.get("id")
+        id_ = data.get("id_")
+        if not isinstance(id_, str):
+            print("Missing or invalid 'id_' in message:", data)
+            continue
         if not id_ or not isinstance(id_, str):
             await websocket.send(json.dumps({"error": "Missing or invalid id_ in message"}))
             continue
@@ -94,13 +97,13 @@ async def recieve(websocket):
         if not function:
             await websocket.send(json.dumps({"error": f"Unknown message type for id_: {id_}", "id": id_}))
             continue
-        data.pop("id", None)
+        data.pop("id_")
         result = await function(id_, **data)
         if result is not None:
-            await websocket.send(json.dumps({**result, "id": id_}))
+            await websocket.send(json.dumps({**result, "id_": id_}))
 
-def checkDataType(id):
-    filtered = re.sub(r'\d', '', id)
+def checkDataType(id_):
+    filtered = re.sub(r'\d', '', id_)
     print(filtered)
     if filtered == '' or filtered not in funcs:
         return False
