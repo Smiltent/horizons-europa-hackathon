@@ -1,7 +1,9 @@
 
 import rootMiddleware from "@/middlewares/root.middleware.ts"
+import authMiddleware from "@/middlewares/auth.middleware.ts"
 import expressLayouts from "express-ejs-layouts"
 import rootRoute from "@/routes/root.routes.ts"
+import cookieParser from "cookie-parser"
 import express from "express"
 import path from "path"
 
@@ -30,6 +32,8 @@ export default class Express {
 
         this.app.locals.dev = process.env.NODE_ENV === "dev" ? true : false
 
+        this.app.use(cookieParser())
+        this.app.use(authMiddleware)
         this.app.use(rootMiddleware)
     }
 
