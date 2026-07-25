@@ -1,6 +1,7 @@
 
 import rootMiddleware from "@/middlewares/root.middleware.ts"
 import authMiddleware from "@/middlewares/auth.middleware.ts"
+import projectRoute from "@/routes/project.routes.ts"
 import expressLayouts from "express-ejs-layouts"
 import rootRoute from "@/routes/root.routes.ts"
 import cookieParser from "cookie-parser"
@@ -39,6 +40,7 @@ export default class Express {
 
     private async routes() {
         this.app.use("/", rootRoute)
+        this.app.use("/projects", projectRoute)
 
         this.app.use((_req: express.Request, res: express.Response) => {
             res.status(404).render("404")
