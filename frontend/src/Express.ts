@@ -1,7 +1,7 @@
 
-import rootMiddleware from "@/middlewares/root.middleware"
+import rootMiddleware from "@/middlewares/root.middleware.ts"
 import expressLayouts from "express-ejs-layouts"
-import rootRoute from "@/routes/root.routes"
+import rootRoute from "@/routes/root.routes.ts"
 import express from "express"
 import path from "path"
 
@@ -26,8 +26,7 @@ export default class Express {
         this.app.use(express.urlencoded({ extended: true }))
 
         this.app.set("view engine", "ejs")
-        this.app.set("layout", "components/$layout")
-
+        this.app.set("layout", "partials/$layout")
 
         this.app.locals.dev = process.env.NODE_ENV === "dev" ? true : false
 
@@ -37,7 +36,7 @@ export default class Express {
     private async routes() {
         this.app.use("/", rootRoute)
 
-        this.app.use((req, res) => {
+        this.app.use((_req: express.Request, res: express.Response) => {
             res.status(404).render("404")
         })
     }
@@ -46,7 +45,7 @@ export default class Express {
         const isDev = process.env.NODE_DEV === "dev"
         this.app.use(
             '/public',
-            express.static(path.join(__dirname, '..', 'public'), {
+            express.static(path.join(import.meta.dirname as string, '..', 'public'), {
                 etag: !isDev,
                 lastModified: !isDev,
                 maxAge: isDev ? 0 : '10s',
@@ -55,7 +54,7 @@ export default class Express {
     }
 
     private async start() {
-        const server = this.app.listen(this.port, () => {
+        this.app.listen(this.port, () => {
             console.info(`Server starting on http://0.0.0.0:${this.port}`)
         })
     }
