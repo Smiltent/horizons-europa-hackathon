@@ -45,7 +45,7 @@ router.post("/logout", async (req: Request, res: Response) => {
         try {
             await ws.request(id_, JSON.stringify({ token }))
         } catch (err) {
-            console.debug("[logout] WS request failed:", err)
+            console.debug(`WS request failed: ${err}`)
         }
     }
 
