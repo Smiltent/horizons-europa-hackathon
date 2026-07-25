@@ -1,15 +1,27 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
-</head>
-<body>
-    <Form method="POST">
-        <input type="text" name="Username">
-        <input type="password" name="password">
-        <button>Login</button>
-    </Form>
-</body>
-</html>
+<form method="POST" action="/login">
+    <div class="flex_row">
+        <div class="flex_col">
+            <div>
+                <input type="text" name="Username" placeholder="Username" required>
+            </div>
+        </div>
+        <div class="flex_col">
+            <div>
+                
+            </div>
+            <div>
+                <% if (error) { %>
+                    <p style="color:red"><%= error %></p>
+                <% } %>
+            </div>
+            <div>
+                <button type="submit">Login</button>
+            </div>
+        </div>
+        <div class="flex_col">
+            <div>
+                <input type="password" name="password" placeholder="Password" required>
+            </div>
+        </div>
+    </div>    
+</form>

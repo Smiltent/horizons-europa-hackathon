@@ -1,18 +1,17 @@
-export function handler(req: Request): Response {
-  const url = new URL(req.url);
 
-  if (url.pathname === "/api") {
-    return Response.json({
-      message: "Hello, world!",
-      time: new Date().toISOString(),
-    });
-  }
+import Express from "@/src/Express.ts"
+import { ws } from "@/src/ws.ts"
 
-  return new Response("<h1>Welcome to Deno!</h1>", {
-    headers: { "content-type": "text/html" },
-  });
-}
+new Express(process.env.PORT)
 
-if (import.meta.main) {
-  Deno.serve(handler);
-}
+ws.onOpen(() => {
+    // ws.send(JSON.stringify({
+    //     type: "login",
+    //     username: "smil",
+    //     password: "Tagung+2"
+    // }))
+})
+
+ws.onMessage((data) => {
+    console.info("[WS] Received:", data)
+})
