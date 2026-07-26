@@ -6,12 +6,18 @@ import aiohttp
 from websockets.asyncio.server import serve
 from websockets.exceptions import ConnectionClosed
 import os
+import requests
+
 from dotenv import load_dotenv
+from websockets.asyncio.server import serve
 
 load_dotenv()
 
 HOST = os.environ.get("HOST", "100.65.0.67")
 PORT = int(os.environ.get("PORT", 6767))
+
+savedir = "dataBase/userData/"
+
 headers = {
     "x-csrftoken": "a",
     "x-requested-with": "XMLHttpRequest",
@@ -21,8 +27,20 @@ headers = {
     "Content-Type": "application/json",
 }
 
-async def login(id_, username, password):
+idList = "dataBase/ids.json"
+def saveID(id_, key, identif):
+    if os.path.exists(idList):
+        with open(idList, "r") as f:
+            data = json.load(f)
+    else:
+        data = {}
 
+    data[key] = identif
+
+    with open(idList, "w") as file:
+        json.dump(data, file, indent=2)
+
+async def login(id_, username, password):
     body = json.dumps({
         "username": username,
         "password": password,
@@ -46,21 +64,10 @@ async def login(id_, username, password):
                 print(e)
 
     print(id_, username, password)
-    idList = "dataBase/ids.json"
-
-    if os.path.exists(idList):
-        with open(idList, "r") as f:
-            data = json.load(f)
-    else:
-        data = {}
 
     key = re.sub(r'\d', '', id_)
     identif = re.sub(r'\D', '', id_)
-    data[key] = identif  # updates existing key or adds it if new
-
-    with open(idList, "w") as file:
-        json.dump(data, file, indent=2)
-    savedir = "dataBase/userData/"
+    saveID(id_, key, identif)
 
     data = {
         "username": username,
@@ -106,6 +113,16 @@ async def repoGetDataResponse(id_, **kwargs):
 async def getRepoList(id_, **kwargs):
     pass  # TODO
 
+async def getProjectList(id_, username):
+    url = f"https://api.scratch.mit.edu/users/{username}/projects"
+
+    r = requests.get(url, params={"limit":40}, timeout=20)
+    r.raise_for_status()
+    projects = r.json()
+
+    for p in projects:
+        print(p["id"], p.get("title"))
+
 funcs = {
     "L": login,
     "RC": repoCreate,
@@ -116,7 +133,8 @@ funcs = {
     "RCMOK": repoCommitOK,
     "RGD": repoGetData,
     "RGDR": repoGetDataResponse,
-    "GRL": getRepoList
+    "GRL": getRepoList,
+    "GPL":getProjectList
 }
 
 async def recieve(websocket):
