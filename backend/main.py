@@ -5,6 +5,12 @@ import re
 import aiohttp
 from websockets.asyncio.server import serve
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+HOST = os.environ.get("HOST", "100.65.0.67")
+PORT = int(os.environ.get("PORT", 6767))
 
 async def login(id_, username, password):
     headers = {
@@ -154,7 +160,7 @@ def checkDataType(id_):
         return funcs[filtered]
 
 async def main():
-    async with serve(recieve, "100.65.0.67", 6767) as server:
+    async with serve(recieve, HOST, PORT) as server:
         print("Serving on", server.sockets[0].getsockname())
         await server.serve_forever()
 
