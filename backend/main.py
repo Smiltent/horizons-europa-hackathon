@@ -13,7 +13,7 @@ from websockets.asyncio.server import serve
 
 load_dotenv()
 
-HOST = os.environ.get("HOST", "100.65.0.67")
+HOST = os.environ.get("HOST", "0.0.0.0")
 PORT = int(os.environ.get("PORT", 6767))
 
 savedir = "dataBase/userData/"
