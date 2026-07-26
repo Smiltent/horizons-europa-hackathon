@@ -100,3 +100,8 @@ button:hover{
     grid-template-columns: repeat(11, 120px);
     grid-template-rows: repeat(5, 120px);
 }
+.img_box{
+    position: absolute;
+    right: 30px;
+    top: 30px;
+}
