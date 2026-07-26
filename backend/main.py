@@ -118,7 +118,7 @@ async def getRepoList(id_, **kwargs):
     return {"success": False, "error": "not_implemented"}
 
 
-async def getProjectList(id_, username):
+async def getProjectList(id_, username, **kwargs):
     url = f"https://api.scratch.mit.edu/users/{username}/projects"
 
     async with aiohttp.ClientSession() as session:
