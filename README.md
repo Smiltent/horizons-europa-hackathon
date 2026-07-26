@@ -4,6 +4,7 @@ MVC has got you covered!
 
 ## Features
 * Storing your projects to version control
+* Viewing commits
 * Roll back your changes
 
 ## Preview
