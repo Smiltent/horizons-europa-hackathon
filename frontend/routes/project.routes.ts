@@ -4,7 +4,7 @@ import { createIdGenerator } from "@/utils/id.ts"
 import { ws } from "@/src/ws.ts"
 
 const router = Router()
-const fetchId = createIdGenerator("GRL")
+const fetchId = createIdGenerator("GPL")
 const createId = createIdGenerator("RC")
 const getDataId = createIdGenerator("RGD")
 
