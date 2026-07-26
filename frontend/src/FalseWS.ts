@@ -1,20 +1,22 @@
 
 type MessageHandler = (data: string | ArrayBuffer) => void
 
-type Project = {
-    id: string
-    name: string
-    created: boolean
-    isPublished?: boolean
-    dateOfCreation?: string
+// Mirrors the raw shape Scratch's own API returns from
+// api.scratch.mit.edu/users/:username/projects — this is what getProjectList
+// (id prefix "GPL") forwards as-is on the real backend.
+type ScratchProject = {
+    id: number
+    title: string
+    is_published?: boolean
+    history?: { created?: string }
 }
 
-const FAKE_PROJECTS: Project[] = [
-    { id: "100000001", name: "Design Mode Project A", created: true, isPublished: true, dateOfCreation: "2026-06-01" },
-    { id: "100000002", name: "Design Mode Project B", created: true, isPublished: false, dateOfCreation: "2026-06-15" },
-    { id: "100000004", name: "Design Mode Project c", created: true, isPublished: false, dateOfCreation: "2026-06-15" },
-    { id: "100000005", name: "Design Mode Project d", created: true, isPublished: false, dateOfCreation: "2026-06-15" },
-    { id: "100000003", name: "Unlinked Scratch Project", created: false },
+const FAKE_PROJECTS: ScratchProject[] = [
+    { id: 100000001, title: "Design Mode Project A", is_published: true, history: { created: "2026-06-01" } },
+    { id: 100000002, title: "Design Mode Project B", is_published: false, history: { created: "2026-06-15" } },
+    { id: 100000004, title: "Design Mode Project c", is_published: false, history: { created: "2026-06-15" } },
+    { id: 100000005, title: "Design Mode Project d", is_published: false, history: { created: "2026-06-15" } },
+    { id: 100000003, title: "Unlinked Scratch Project", is_published: false, history: { created: "2026-06-20" } },
 ]
 
 export default class FalseWS {
@@ -42,8 +44,8 @@ export default class FalseWS {
                 return { success: true, token: "design-mode-token", username: payload.username ?? "designer" }
             case "LO":
                 return { success: true }
-            case "GRL":
-                return { success: true, projects: FAKE_PROJECTS }
+            case "GPL":
+                return { success: true, username: payload.username, projects: FAKE_PROJECTS }
             case "RC":
                 return { success: true, projectId: payload.projectId }
             case "RCOK":

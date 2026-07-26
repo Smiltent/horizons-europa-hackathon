@@ -16,21 +16,37 @@ type Project = {
     dateOfCreation?: string
 }
 
+// Raw shape returned by Scratch's own project list API (api.scratch.mit.edu/users/:username/projects).
+type ScratchProject = {
+    id: number | string
+    title: string
+    is_published?: boolean
+    history?: { created?: string }
+}
+
 type Cookies = Record<string, string>
 
 router.get("/", async (req: Request, res: Response) => {
-    const token = (req as unknown as { cookies: Cookies }).cookies?.token
+    const { token, username } = (req as unknown as { cookies: Cookies }).cookies ?? {}
     const id_ = fetchId()
 
     try {
-        const result = await ws.request<{ projects: Project[] }>(id_, JSON.stringify({
+        const result = await ws.request<{ projects: ScratchProject[] }>(id_, JSON.stringify({
             token,
+            username,
         }))
 
-        const created = result.projects.filter((p) => p.created)
-        const nonCreated = result.projects.filter((p) => !p.created)
+        // Repo-linking isn't implemented on the backend yet (getRepoList/repoCreate
+        // are stubs), so every Scratch project shows up as not-yet-created.
+        const nonCreated: Project[] = result.projects.map((p) => ({
+            id: String(p.id),
+            name: p.title,
+            created: false,
+            isPublished: p.is_published,
+            dateOfCreation: p.history?.created,
+        }))
 
-        res.render("projects/list", { created, nonCreated, error: null })
+        res.render("projects/list", { created: [], nonCreated, error: null })
     } catch {
         res.render("projects/list", { created: [], nonCreated: [], error: "Could not load projects" })
     }

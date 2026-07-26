@@ -9,7 +9,7 @@ MVC has got you covered!
 * ~~Roll back your changes~~
 
 ## Preview
-You can see a working preview on https://mew.quack.zip!
+You can see a *somewhat* working preview on https://mew.quack.zip!
 
 ## Running
 You will need both [Deno](https://deno.com/) and [Python](https://www.python.org/downloads/) installed! Each project is located in their own seperate directories!

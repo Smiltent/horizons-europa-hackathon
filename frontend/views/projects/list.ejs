@@ -37,9 +37,7 @@
         <div class="pink"><%= proj.name %></div>
         <div class="pink">Not created</div>
         <div class="pink">
-            <form method="POST" action="/projects/<%= proj.id %>/create">
-                <button class="button"type="submit">Create</button>
-            </form>
+            <button class="button" type="button" disabled title="Not available yet">Create</button>
         </div>
         <div class="pink"></div>
             <% }) %>
