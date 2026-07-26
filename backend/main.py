@@ -4,6 +4,7 @@ import asyncio
 import re
 import aiohttp
 from websockets.asyncio.server import serve
+from websockets.exceptions import ConnectionClosed
 import os
 from dotenv import load_dotenv
 
@@ -119,38 +120,35 @@ funcs = {
 }
 
 async def recieve(websocket):
-    async for message in websocket:
-        while True:
+    try:
+        async for message in websocket:
+            print(message)
             try:
                 data = json.loads(message)
-                print(message)
-                if data:
-                    break
-            except Exception as e:
-                e = str(e)
-                await websocket.send(e)
+            except json.JSONDecodeError as e:
+                await websocket.send(json.dumps({"error": str(e)}))
+                continue
 
-        id_ = data.get("id_")
-        if not id_ or not isinstance(id_, str):
-            print("Missing or invalid 'id_' in message:", data)
-            await websocket.send(json.dumps({"error": "Missing or invalid id_ in message"}))
-            continue
-        function = checkDataType(id_)
-        if not function:
-            await websocket.send(json.dumps({"error": f"Unknown message type for id_: {id_}", "id_": id_}))
-            continue
-        data.pop("id_") # separate
-        while True:
+            id_ = data.get("id_") if isinstance(data, dict) else None
+            if not id_ or not isinstance(id_, str):
+                print("Missing or invalid 'id_' in message:", data)
+                await websocket.send(json.dumps({"error": "Missing or invalid id_ in message"}))
+                continue
+            function = checkDataType(id_)
+            if not function:
+                await websocket.send(json.dumps({"error": f"Unknown message type for id_: {id_}", "id_": id_}))
+                continue
+            data.pop("id_") # separate
             try:
                 result = await function(id_, **data)
-                if result:
-                    break
             except Exception as e:
-                e = str(e)
-                await websocket.send(e)
+                await websocket.send(json.dumps({"error": str(e), "id_": id_}))
+                continue
 
-        if result is not None:
-            await websocket.send(json.dumps({**result, "id_": id_}))
+            if result is not None:
+                await websocket.send(json.dumps({**result, "id_": id_}))
+    except ConnectionClosed:
+        pass
 
 def checkDataType(id_):
     filtered = re.sub(r'\d', '', id_)
