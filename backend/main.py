@@ -3,20 +3,22 @@ import json
 import asyncio
 import re
 import aiohttp
-from websockets.asyncio.server import serve
-from websockets.exceptions import ConnectionClosed
 import os
-import requests
 
 from dotenv import load_dotenv
 from websockets.asyncio.server import serve
 
 load_dotenv()
 
-HOST = os.environ.get("HOST", "0.0.0.0")
+HOST = os.environ.get("HOST", "100.65.0.67")
 PORT = int(os.environ.get("PORT", 6767))
 
 savedir = "dataBase/userData/"
+idList = "dataBase/ids.json"
+
+# Make sure the directories we write to actually exist before we try to write.
+os.makedirs(savedir, exist_ok=True)
+os.makedirs(os.path.dirname(idList), exist_ok=True)
 
 headers = {
     "x-csrftoken": "a",
@@ -27,7 +29,7 @@ headers = {
     "Content-Type": "application/json",
 }
 
-idList = "dataBase/ids.json"
+
 def saveID(id_, key, identif):
     if os.path.exists(idList):
         with open(idList, "r") as f:
@@ -39,6 +41,7 @@ def saveID(id_, key, identif):
 
     with open(idList, "w") as file:
         json.dump(data, file, indent=2)
+
 
 async def login(id_, username, password):
     body = json.dumps({
@@ -58,10 +61,7 @@ async def login(id_, username, password):
             if result.get("success") != 1:
                 return {"success": False, "error": "invalid_credentials"}
 
-            try:
-                session_cookie = resp.cookies.get("scratchsessionsid")
-            except Exception as e:
-                print(e)
+            session_cookie = resp.cookies.get("scratchsessionsid")
 
     print(id_, username, password)
 
@@ -71,12 +71,11 @@ async def login(id_, username, password):
 
     data = {
         "username": username,
-        "password": password,
         "session_id": session_cookie.value if session_cookie else None,
         "token": result.get("token"),
     }
 
-    with open(savedir + username +".json", "w") as file:
+    with open(savedir + username + ".json", "w") as file:
         json.dump(data, file, indent=2)
 
     return {
@@ -86,42 +85,60 @@ async def login(id_, username, password):
         "token": result.get("token"),
     }
 
+
+# --- Repo handlers: not implemented yet. They MUST return a dict (not None),
+# otherwise the retry loop in recieve() will call them forever. ---
+
 async def repoCreate(id_, **kwargs):
-    pass  # TODO
+    return {"success": False, "error": "not_implemented"}
 
 async def repoCreateOK(id_, **kwargs):
-    pass  # TODO
+    return {"success": False, "error": "not_implemented"}
 
 async def repoDelete(id_, **kwargs):
-    pass  # TODO
+    return {"success": False, "error": "not_implemented"}
 
 async def repoDeleteOK(id_, **kwargs):
-    pass  # TODO
+    return {"success": False, "error": "not_implemented"}
 
 async def repoCommit(id_, **kwargs):
-    pass  # TODO
+    return {"success": False, "error": "not_implemented"}
 
 async def repoCommitOK(id_, **kwargs):
-    pass  # TODO
+    return {"success": False, "error": "not_implemented"}
 
 async def repoGetData(id_, **kwargs):
-    pass  # TODO
+    return {"success": False, "error": "not_implemented"}
 
 async def repoGetDataResponse(id_, **kwargs):
-    pass  # TODO
+    return {"success": False, "error": "not_implemented"}
 
 async def getRepoList(id_, **kwargs):
-    pass  # TODO
+    return {"success": False, "error": "not_implemented"}
+
 
 async def getProjectList(id_, username):
+    """Fetch a user's Scratch projects.
+
+    NOTE: this no longer touches `websocket` directly — it didn't have
+    access to it anyway. It just returns a dict, and recieve() sends it
+    back over the socket, same as every other handler.
+    """
     url = f"https://api.scratch.mit.edu/users/{username}/projects"
 
-    r = requests.get(url, params={"limit":40}, timeout=20)
-    r.raise_for_status()
-    projects = r.json()
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url, params={"limit": 40}, timeout=aiohttp.ClientTimeout(total=20)) as resp:
+            try:
+                projects = await resp.json()
+            except Exception as e:
+                print(e)
+                return {"success": False, "error": "unexpected_response"}
 
     for p in projects:
-        print(p["id"], p.get("title"))
+        print(p.get("id"), p.get("title"))
+
+    return {"success": True, "username": username, "projects": projects}
+
 
 funcs = {
     "L": login,
@@ -134,39 +151,9 @@ funcs = {
     "RGD": repoGetData,
     "RGDR": repoGetDataResponse,
     "GRL": getRepoList,
-    "GPL":getProjectList
+    "GPL": getProjectList,
 }
 
-async def recieve(websocket):
-    try:
-        async for message in websocket:
-            print(message)
-            try:
-                data = json.loads(message)
-            except json.JSONDecodeError as e:
-                await websocket.send(json.dumps({"error": str(e)}))
-                continue
-
-            id_ = data.get("id_") if isinstance(data, dict) else None
-            if not id_ or not isinstance(id_, str):
-                print("Missing or invalid 'id_' in message:", data)
-                await websocket.send(json.dumps({"error": "Missing or invalid id_ in message"}))
-                continue
-            function = checkDataType(id_)
-            if not function:
-                await websocket.send(json.dumps({"error": f"Unknown message type for id_: {id_}", "id_": id_}))
-                continue
-            data.pop("id_") # separate
-            try:
-                result = await function(id_, **data)
-            except Exception as e:
-                await websocket.send(json.dumps({"error": str(e), "id_": id_}))
-                continue
-
-            if result is not None:
-                await websocket.send(json.dumps({**result, "id_": id_}))
-    except ConnectionClosed:
-        pass
 
 def checkDataType(id_):
     filtered = re.sub(r'\d', '', id_)
@@ -176,14 +163,56 @@ def checkDataType(id_):
     else:
         return funcs[filtered]
 
+
+async def recieve(websocket):
+    async for message in websocket:
+        # Try to parse the incoming message. If it's bad JSON, tell the
+        # client and move on to the NEXT message instead of retrying the
+        # same broken message forever.
+        try:
+            data = json.loads(message)
+        except Exception as e:
+            await websocket.send(json.dumps({"error": f"invalid_json: {e}"}))
+            continue
+
+        if not data:
+            await websocket.send(json.dumps({"error": "empty_message"}))
+            continue
+
+        id_ = data.get("id_")
+        if not id_ or not isinstance(id_, str):
+            print("Missing or invalid 'id_' in message:", data)
+            await websocket.send(json.dumps({"error": "Missing or invalid id_ in message"}))
+            continue
+
+        function = checkDataType(id_)
+        if not function:
+            await websocket.send(json.dumps({"error": f"Unknown message type for id_: {id_}", "id_": id_}))
+            continue
+
+        data.pop("id_")  # separate id_ from the kwargs passed to the handler
+
+        # Call the handler ONCE. If it throws, report the error and move on
+        # to the next message rather than retrying indefinitely.
+        try:
+            result = await function(id_, **data)
+        except Exception as e:
+            await websocket.send(json.dumps({"error": str(e), "id_": id_}))
+            continue
+
+        if result is not None:
+            await websocket.send(json.dumps({**result, "id_": id_}))
+
+
 async def main():
     async with serve(recieve, HOST, PORT) as server:
         print("Serving on", server.sockets[0].getsockname())
         await server.serve_forever()
 
+
 def decoder(text):
     directory = 'dataBase/'
-    with open(directory + text,"r") as f:
+    with open(directory + text, "r") as f:
         b64_content = f.read().strip()
 
     decoded_bytes = base64.b64decode(b64_content)
@@ -195,6 +224,7 @@ def decoder(text):
 
     with open(directory + "output.json", "w") as f:
         json.dump(data, f, indent=2)
+
 
 if __name__ == "__main__":
     asyncio.run(main())
