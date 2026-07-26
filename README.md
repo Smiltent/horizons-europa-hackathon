@@ -3,9 +3,10 @@ Have you ever had a problem, where you were using Scratch, and you don't have a 
 MVC has got you covered!
 
 ## Features
-* Storing your projects to version control
-* Viewing commits
-* Roll back your changes
+* Scratch Authorization
+* ~~Storing your projects to version control~~
+* ~~Viewing commits~~
+* ~~Roll back your changes~~
 
 ## Preview
 You can see a working preview on https://mew.quack.zip!
