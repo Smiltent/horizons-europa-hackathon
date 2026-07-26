@@ -5,16 +5,23 @@ import re
 import aiohttp
 from websockets.asyncio.server import serve
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+HOST = os.environ.get("HOST", "100.65.0.67")
+PORT = int(os.environ.get("PORT", 6767))
+headers = {
+    "x-csrftoken": "a",
+    "x-requested-with": "XMLHttpRequest",
+    "Cookie": "scratchcsrftoken=a;scratchlanguage=en;",
+    "referer": "https://scratch.mit.edu",
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+    "Content-Type": "application/json",
+}
 
 async def login(id_, username, password):
-    headers = {
-        "x-csrftoken": "a",
-        "x-requested-with": "XMLHttpRequest",
-        "Cookie": "scratchcsrftoken=a;scratchlanguage=en;",
-        "referer": "https://scratch.mit.edu",
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
-        "Content-Type": "application/json",
-    }
+
     body = json.dumps({
         "username": username,
         "password": password,
@@ -154,7 +161,7 @@ def checkDataType(id_):
         return funcs[filtered]
 
 async def main():
-    async with serve(recieve, "100.65.0.67", 6767) as server:
+    async with serve(recieve, HOST, PORT) as server:
         print("Serving on", server.sockets[0].getsockname())
         await server.serve_forever()
 
