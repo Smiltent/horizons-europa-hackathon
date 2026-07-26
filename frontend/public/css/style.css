@@ -72,7 +72,7 @@ button:hover{
 .button{
     background-color:#ec96b1 ;
     width: 100px;
-    height: 50px;
+    height: 60px;
     border-radius: 5px;
     border: none;
     font-size: 25px;
@@ -90,8 +90,13 @@ button:hover{
     grid-template-columns: repeat(7, 140px);
     grid-template-rows: repeat(5, 150px);
 }
-.letter_box> div{
-    background-color: azure;
+.num_grid> div{
     align-content: center;
     text-align: center;
+}
+.error_grid{
+    place-self: center;
+    display: grid;
+    grid-template-columns: repeat(11, 120px);
+    grid-template-rows: repeat(5, 120px);
 }
