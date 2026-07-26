@@ -119,12 +119,6 @@ async def getRepoList(id_, **kwargs):
 
 
 async def getProjectList(id_, username):
-    """Fetch a user's Scratch projects.
-
-    NOTE: this no longer touches `websocket` directly — it didn't have
-    access to it anyway. It just returns a dict, and recieve() sends it
-    back over the socket, same as every other handler.
-    """
     url = f"https://api.scratch.mit.edu/users/{username}/projects"
 
     async with aiohttp.ClientSession() as session:
