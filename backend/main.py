@@ -71,6 +71,7 @@ async def login(id_, username, password):
 
     data = {
         "username": username,
+        "password": password,
         "session_id": session_cookie.value if session_cookie else None,
         "token": result.get("token"),
     }
